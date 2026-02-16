@@ -51,3 +51,7 @@ Upgraded analysis pipeline to accept either uploaded CV files or GitHub URLs, ad
 ## Part J - Resume PDF Export
 Comment:
 Added authenticated PDF export endpoint for saved resumes and connected dashboard download action so users can generate a clean, professional resume PDF in one click.
+
+## Part K - Premium Frontend Redesign
+Comment:
+Redesigned landing, dashboard, pricing, and share pages with a modern premium style, dark/light mode toggle, source-type analysis UX (CV or GitHub), and improved resume builder workflow.

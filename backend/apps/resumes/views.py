@@ -79,7 +79,11 @@ class ResumePdfExportView(APIView):
         if not resume:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        pdf_bytes = build_resume_pdf_bytes(resume)
+        try:
+            pdf_bytes = build_resume_pdf_bytes(resume)
+        except RuntimeError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
         filename = build_export_filename(resume.title)
 
         response = HttpResponse(pdf_bytes, content_type="application/pdf")

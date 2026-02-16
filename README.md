@@ -17,6 +17,12 @@ Users can upload a CV, get ATS-style analysis, rewrite suggestions, and keyword 
 - Save flow: User explicitly saves the analyzed CV to PostgreSQL with version history.
 - Share flow: User generates a view-only share token and sends a public link.
 
+## Key Capabilities
+- Analyze source choice: `CV file` or `GitHub profile/repository URL`.
+- AI output includes ATS score, strengths, weaknesses, missing keywords, rewritten summary, improved bullets, and next actions.
+- Premium dashboard UI with dark/light mode.
+- Resume builder with structured fields and one-click PDF export.
+
 ## How To Present This In Your CV
 - Built an AI-powered CV optimization SaaS using Next.js, Django REST Framework, PostgreSQL, Redis, and Celery.
 - Designed asynchronous processing for resume analysis to avoid API timeouts and improve responsiveness.

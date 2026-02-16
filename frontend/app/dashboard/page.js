@@ -1,22 +1,53 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
+
 import { apiDownload, apiFetch, clearAccessToken, getAccessToken, getApiBase, setAccessToken } from "@/lib/api";
+
+function ListSection({ title, items }) {
+  if (!items || !items.length) {
+    return null;
+  }
+  return (
+    <article className="list-block">
+      <h4>{title}</h4>
+      <ul>
+        {items.map((item, index) => (
+          <li key={`${title}-${index}`}>{item}</li>
+        ))}
+      </ul>
+    </article>
+  );
+}
+
+function downloadBlob(blob, filename) {
+  const url = window.URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.URL.revokeObjectURL(url);
+}
 
 function AuthPanel({ onAuth }) {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
 
   async function register() {
     setError("");
+    setInfo("");
     try {
       await apiFetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, email, password }),
       });
+      setInfo("Registration completed. Logging in...");
       await login();
     } catch (e) {
       setError(e.message);
@@ -25,6 +56,7 @@ function AuthPanel({ onAuth }) {
 
   async function login() {
     setError("");
+    setInfo("");
     try {
       const data = await apiFetch("/api/auth/login", {
         method: "POST",
@@ -39,48 +71,69 @@ function AuthPanel({ onAuth }) {
   }
 
   return (
-    <section className="card" style={{ maxWidth: 520, margin: "0 auto" }}>
-      <h2>Login or Register</h2>
-      <div className="grid">
-        <div>
-          <label>Username</label>
-          <input value={username} onChange={(e) => setUsername(e.target.value)} />
+    <main className="page-block">
+      <section className="container card panel" style={{ maxWidth: 620 }}>
+        <span className="pill">Secure Access</span>
+        <h2 style={{ marginTop: 12 }}>Login or Register</h2>
+        <p className="muted">Use your account to run analysis jobs, save CV versions, and export PDF.</p>
+
+        <div className="form-grid">
+          <div className="form-row">
+            <div>
+              <label>Username</label>
+              <input value={username} onChange={(e) => setUsername(e.target.value)} />
+            </div>
+            <div>
+              <label>Email (for register)</label>
+              <input value={email} onChange={(e) => setEmail(e.target.value)} />
+            </div>
+          </div>
+          <div>
+            <label>Password</label>
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          </div>
+          <div className="stack">
+            <button className="button" onClick={login}>
+              Login
+            </button>
+            <button className="button secondary" onClick={register}>
+              Register
+            </button>
+          </div>
+          {error ? <p className="inline-alert error">{error}</p> : null}
+          {info ? <p className="inline-alert ok">{info}</p> : null}
         </div>
-        <div>
-          <label>Email (for register)</label>
-          <input value={email} onChange={(e) => setEmail(e.target.value)} />
-        </div>
-        <div>
-          <label>Password</label>
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-        </div>
-        {error ? <p style={{ color: "crimson" }}>{error}</p> : null}
-        <div style={{ display: "flex", gap: 10 }}>
-          <button className="button" onClick={login}>Login</button>
-          <button className="button secondary" onClick={register}>Register</button>
-        </div>
-      </div>
-    </section>
+      </section>
+    </main>
   );
 }
 
 function AnalyzeTab({ token }) {
+  const [sourceType, setSourceType] = useState("cv");
   const [file, setFile] = useState(null);
+  const [githubUrl, setGithubUrl] = useState("");
   const [jobDescription, setJobDescription] = useState("");
   const [jobId, setJobId] = useState("");
   const [status, setStatus] = useState("");
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
-  const [saveTitle, setSaveTitle] = useState("My Resume");
+  const [info, setInfo] = useState("");
+  const [saveTitle, setSaveTitle] = useState("AI Optimized Resume");
 
   useEffect(() => {
-    if (!jobId) return;
+    if (!jobId) {
+      return;
+    }
+
     const timer = setInterval(async () => {
       try {
         const data = await apiFetch(`/api/analyze/${jobId}`, { method: "GET" }, token);
         setStatus(data.status);
         if (data.result) {
           setResult(data.result);
+        }
+        if (data.status === "completed" || data.status === "failed") {
+          clearInterval(timer);
         }
       } catch (e) {
         setError(e.message);
@@ -92,29 +145,44 @@ function AnalyzeTab({ token }) {
   }, [jobId, token]);
 
   async function runAnalyze() {
-    if (!file) {
-      setError("Choose a file first.");
+    setError("");
+    setInfo("");
+    setResult(null);
+    setJobId("");
+    setStatus("pending");
+
+    if (sourceType === "cv" && !file) {
+      setError("Please upload a CV file.");
       return;
     }
-    setError("");
-    setResult(null);
+    if (sourceType === "github" && !githubUrl.trim()) {
+      setError("Please provide a GitHub URL.");
+      return;
+    }
 
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append("source_type", sourceType);
     formData.append("job_description", jobDescription);
+
+    if (sourceType === "cv") {
+      formData.append("file", file);
+    } else {
+      formData.append("github_url", githubUrl.trim());
+    }
 
     try {
       const data = await apiFetch("/api/analyze", { method: "POST", body: formData }, token);
       setJobId(data.job_id);
-      setStatus("pending");
+      setInfo("Analysis job started. Please wait a few seconds.");
     } catch (e) {
       setError(e.message);
+      setStatus("");
     }
   }
 
   async function saveResult() {
     if (!result) {
-      setError("No analysis result to save.");
+      setError("No analysis result available to save.");
       return;
     }
 
@@ -126,96 +194,322 @@ function AnalyzeTab({ token }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             title: saveTitle,
-            content: { summary: result.rewritten_summary || "" },
+            content: {
+              summary: result.rewritten_summary || result.overall_summary || "",
+              experience: Array.isArray(result.improved_bullets) ? result.improved_bullets.join("\n") : "",
+              skills: result.feature_highlights || [],
+            },
             latest_analysis: result,
           }),
         },
         token,
       );
-      setError("");
-      alert("Saved to your resumes.");
+      setInfo("Analysis result was saved into your resume library.");
     } catch (e) {
       setError(e.message);
     }
   }
 
+  const atsScore = result?.ats_score ?? 0;
+
   return (
-    <section className="card grid">
-      <h3>Analyze CV</h3>
-      <div>
-        <label>CV file (PDF/DOCX/TXT)</label>
-        <input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+    <section className="card panel form-grid">
+      <h3>AI Analyze</h3>
+      <p className="muted">Pick source type: upload a CV file or provide a GitHub profile/repository URL.</p>
+
+      <div className="form-row">
+        <div>
+          <label>Source Type</label>
+          <select value={sourceType} onChange={(e) => setSourceType(e.target.value)}>
+            <option value="cv">CV File</option>
+            <option value="github">GitHub URL</option>
+          </select>
+        </div>
+        {sourceType === "cv" ? (
+          <div>
+            <label>CV File (PDF/DOCX/TXT)</label>
+            <input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+          </div>
+        ) : (
+          <div>
+            <label>GitHub URL</label>
+            <input
+              placeholder="https://github.com/username or https://github.com/user/repo"
+              value={githubUrl}
+              onChange={(e) => setGithubUrl(e.target.value)}
+            />
+          </div>
+        )}
       </div>
+
       <div>
-        <label>Job Description (optional)</label>
-        <textarea rows={6} value={jobDescription} onChange={(e) => setJobDescription(e.target.value)} />
+        <label>Target Job Description (optional)</label>
+        <textarea
+          rows={6}
+          value={jobDescription}
+          onChange={(e) => setJobDescription(e.target.value)}
+          placeholder="Paste target job description to improve keyword matching."
+        />
       </div>
-      <button className="button" onClick={runAnalyze}>Start Analyze</button>
-      {jobId ? <p className="muted">Job ID: {jobId} | Status: {status}</p> : null}
+
+      <div className="stack">
+        <button className="button" onClick={runAnalyze}>
+          Start Analysis
+        </button>
+        {jobId ? <span className={`status-badge ${status || "pending"}`}>{status || "pending"}</span> : null}
+      </div>
+      {jobId ? <p className="muted">Job ID: {jobId}</p> : null}
+      {error ? <p className="inline-alert error">{error}</p> : null}
+      {info ? <p className="inline-alert ok">{info}</p> : null}
+
       {result ? (
-        <>
-          <pre>{JSON.stringify(result, null, 2)}</pre>
+        <div className="grid">
+          <div className="kpi-grid">
+            <article className="kpi-card">
+              <h4>ATS Score</h4>
+              <p>{atsScore}/100</p>
+            </article>
+            <article className="kpi-card">
+              <h4>Top Strengths</h4>
+              <p>{(result.strengths || []).length}</p>
+            </article>
+            <article className="kpi-card">
+              <h4>Missing Keywords</h4>
+              <p>{(result.missing_keywords || []).length}</p>
+            </article>
+          </div>
+
+          <article className="list-block">
+            <h4>Overall Summary</h4>
+            <p className="muted" style={{ marginBottom: 0 }}>
+              {result.overall_summary || "No summary provided."}
+            </p>
+          </article>
+          <article className="list-block">
+            <h4>Rewritten Professional Summary</h4>
+            <p className="muted" style={{ marginBottom: 0 }}>
+              {result.rewritten_summary || "No rewritten summary available."}
+            </p>
+          </article>
+
           <div className="grid two">
+            <ListSection title="Strengths" items={result.strengths || []} />
+            <ListSection title="Weaknesses" items={result.weaknesses || []} />
+            <ListSection title="Missing Keywords" items={result.missing_keywords || []} />
+            <ListSection title="Feature Highlights" items={result.feature_highlights || []} />
+            <ListSection title="Improved Bullets" items={result.improved_bullets || []} />
+            <ListSection title="Next Actions" items={result.next_actions || []} />
+          </div>
+
+          <div className="form-row">
             <div>
-              <label>Title for save</label>
+              <label>Save Title</label>
               <input value={saveTitle} onChange={(e) => setSaveTitle(e.target.value)} />
             </div>
-            <div style={{ alignSelf: "end" }}>
-              <button className="button secondary" onClick={saveResult}>Save Result</button>
+            <div className="stack" style={{ alignItems: "flex-end" }}>
+              <button className="button secondary" onClick={saveResult}>
+                Save Analysis Result
+              </button>
             </div>
           </div>
-        </>
+        </div>
       ) : null}
-      {error ? <p style={{ color: "crimson" }}>{error}</p> : null}
     </section>
   );
 }
 
 function BuilderTab({ token }) {
-  const [title, setTitle] = useState("Manual Resume");
+  const [title, setTitle] = useState("My Professional Resume");
+  const [fullName, setFullName] = useState("");
+  const [headline, setHeadline] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [location, setLocation] = useState("");
+  const [linkedin, setLinkedin] = useState("");
+  const [github, setGithub] = useState("");
+  const [website, setWebsite] = useState("");
   const [summary, setSummary] = useState("");
+  const [skillsCsv, setSkillsCsv] = useState("");
   const [experience, setExperience] = useState("");
+  const [education, setEducation] = useState("");
+  const [projects, setProjects] = useState("");
+  const [savedResumeId, setSavedResumeId] = useState(null);
   const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
+
+  function parseLines(value) {
+    return value
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+  }
 
   async function saveBuilder() {
     setError("");
+    setInfo("");
     try {
-      await apiFetch(
+      const payload = {
+        title,
+        content: {
+          full_name: fullName,
+          headline,
+          summary,
+          contact: {
+            email,
+            phone,
+            location,
+            linkedin,
+            github,
+            website,
+          },
+          skills: skillsCsv
+            .split(",")
+            .map((item) => item.trim())
+            .filter(Boolean),
+          experience: parseLines(experience),
+          education: parseLines(education),
+          projects: parseLines(projects),
+        },
+        latest_analysis: {},
+      };
+      const data = await apiFetch(
         "/api/resumes",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title,
-            content: { summary, experience },
-            latest_analysis: {},
-          }),
+          body: JSON.stringify(payload),
         },
         token,
       );
-      alert("Builder CV saved.");
+      setSavedResumeId(data.id);
+      setInfo("Resume saved. You can now export it as PDF.");
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  async function exportPdf() {
+    if (!savedResumeId) {
+      setError("Save the resume first, then export PDF.");
+      return;
+    }
+    try {
+      const { blob, filename } = await apiDownload(`/api/resumes/${savedResumeId}/export`, token);
+      downloadBlob(blob, filename);
+      setInfo("PDF exported successfully.");
     } catch (e) {
       setError(e.message);
     }
   }
 
   return (
-    <section className="card grid">
-      <h3>CV Builder</h3>
-      <div>
-        <label>Title</label>
-        <input value={title} onChange={(e) => setTitle(e.target.value)} />
+    <section className="card panel form-grid">
+      <h3>Resume Builder</h3>
+      <p className="muted">Fill only key fields, save once, and export professional PDF.</p>
+
+      <div className="form-row">
+        <div>
+          <label>Resume Title</label>
+          <input value={title} onChange={(e) => setTitle(e.target.value)} />
+        </div>
+        <div>
+          <label>Full Name</label>
+          <input value={fullName} onChange={(e) => setFullName(e.target.value)} />
+        </div>
       </div>
+
+      <div>
+        <label>Headline</label>
+        <input
+          value={headline}
+          onChange={(e) => setHeadline(e.target.value)}
+          placeholder="Backend Engineer | Python | Distributed Systems"
+        />
+      </div>
+
+      <div className="form-row">
+        <div>
+          <label>Email</label>
+          <input value={email} onChange={(e) => setEmail(e.target.value)} />
+        </div>
+        <div>
+          <label>Phone</label>
+          <input value={phone} onChange={(e) => setPhone(e.target.value)} />
+        </div>
+      </div>
+
+      <div className="form-row">
+        <div>
+          <label>Location</label>
+          <input value={location} onChange={(e) => setLocation(e.target.value)} />
+        </div>
+        <div>
+          <label>LinkedIn</label>
+          <input value={linkedin} onChange={(e) => setLinkedin(e.target.value)} />
+        </div>
+      </div>
+
+      <div className="form-row">
+        <div>
+          <label>GitHub</label>
+          <input value={github} onChange={(e) => setGithub(e.target.value)} />
+        </div>
+        <div>
+          <label>Website</label>
+          <input value={website} onChange={(e) => setWebsite(e.target.value)} />
+        </div>
+      </div>
+
       <div>
         <label>Professional Summary</label>
-        <textarea rows={5} value={summary} onChange={(e) => setSummary(e.target.value)} />
+        <textarea
+          rows={5}
+          value={summary}
+          onChange={(e) => setSummary(e.target.value)}
+          placeholder="Write a concise, impact-based summary."
+        />
       </div>
+
       <div>
-        <label>Experience Bullets</label>
-        <textarea rows={8} value={experience} onChange={(e) => setExperience(e.target.value)} />
+        <label>Skills (comma separated)</label>
+        <input
+          value={skillsCsv}
+          onChange={(e) => setSkillsCsv(e.target.value)}
+          placeholder="Python, Django, PostgreSQL, Redis, Docker"
+        />
       </div>
-      <button className="button" onClick={saveBuilder}>Save CV</button>
-      {error ? <p style={{ color: "crimson" }}>{error}</p> : null}
+
+      <div>
+        <label>Experience (one bullet per line)</label>
+        <textarea
+          rows={7}
+          value={experience}
+          onChange={(e) => setExperience(e.target.value)}
+          placeholder="Built async analysis pipeline with Celery and Redis..."
+        />
+      </div>
+
+      <div>
+        <label>Education (one item per line)</label>
+        <textarea rows={4} value={education} onChange={(e) => setEducation(e.target.value)} />
+      </div>
+
+      <div>
+        <label>Projects (one item per line)</label>
+        <textarea rows={4} value={projects} onChange={(e) => setProjects(e.target.value)} />
+      </div>
+
+      <div className="stack">
+        <button className="button" onClick={saveBuilder}>
+          Save Resume
+        </button>
+        <button className="button secondary" onClick={exportPdf}>
+          Export PDF
+        </button>
+      </div>
+
+      {error ? <p className="inline-alert error">{error}</p> : null}
+      {info ? <p className="inline-alert ok">{info}</p> : null}
     </section>
   );
 }
@@ -223,6 +517,7 @@ function BuilderTab({ token }) {
 function SavedTab({ token }) {
   const [resumes, setResumes] = useState([]);
   const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
 
   async function loadResumes() {
     setError("");
@@ -241,8 +536,9 @@ function SavedTab({ token }) {
   async function shareResume(id) {
     try {
       const data = await apiFetch(`/api/resumes/${id}/share`, { method: "POST" }, token);
-      const full = `${window.location.origin}${data.url}`;
-      alert(`Share link: ${full}`);
+      const fullUrl = `${window.location.origin}${data.url}`;
+      await navigator.clipboard.writeText(fullUrl);
+      setInfo(`Share link copied: ${fullUrl}`);
     } catch (e) {
       setError(e.message);
     }
@@ -251,36 +547,40 @@ function SavedTab({ token }) {
   async function exportPdf(id) {
     try {
       const { blob, filename } = await apiDownload(`/api/resumes/${id}/export`, token);
-      const url = window.URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = filename;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      window.URL.revokeObjectURL(url);
+      downloadBlob(blob, filename);
+      setInfo("PDF downloaded.");
     } catch (e) {
       setError(e.message);
     }
   }
 
   return (
-    <section className="card grid">
-      <h3>Saved CVs</h3>
-      <button className="button ghost" onClick={loadResumes}>Refresh</button>
-      <div className="grid">
-        {resumes.map((resume) => (
-          <article key={resume.id} className="card">
-            <h4>{resume.title}</h4>
-            <p className="muted">Updated: {new Date(resume.updated_at).toLocaleString()}</p>
-            <div style={{ display: "flex", gap: 10 }}>
-              <button className="button secondary" onClick={() => shareResume(resume.id)}>Create Share Link</button>
-              <button className="button ghost" onClick={() => exportPdf(resume.id)}>Export PDF</button>
-            </div>
-          </article>
-        ))}
+    <section className="card panel form-grid">
+      <div className="dashboard-top">
+        <h3 style={{ margin: 0 }}>Saved Resumes</h3>
+        <button className="button ghost" onClick={loadResumes}>
+          Refresh
+        </button>
       </div>
-      {error ? <p style={{ color: "crimson" }}>{error}</p> : null}
+
+      {resumes.length === 0 ? <p className="muted">No saved resumes yet.</p> : null}
+      {resumes.map((resume) => (
+        <article key={resume.id} className="resume-item">
+          <h4 style={{ marginTop: 0 }}>{resume.title}</h4>
+          <p className="muted">Updated: {new Date(resume.updated_at).toLocaleString()}</p>
+          <div className="stack">
+            <button className="button secondary" onClick={() => shareResume(resume.id)}>
+              Copy Share Link
+            </button>
+            <button className="button ghost" onClick={() => exportPdf(resume.id)}>
+              Export PDF
+            </button>
+          </div>
+        </article>
+      ))}
+
+      {error ? <p className="inline-alert error">{error}</p> : null}
+      {info ? <p className="inline-alert ok">{info}</p> : null}
     </section>
   );
 }
@@ -293,50 +593,56 @@ export default function DashboardPage() {
     setToken(getAccessToken());
   }, []);
 
+  const tabs = useMemo(
+    () => [
+      { id: "analyze", label: "Analyze" },
+      { id: "builder", label: "Builder" },
+      { id: "saved", label: "Saved" },
+    ],
+    [],
+  );
+
   function logout() {
     clearAccessToken();
     setToken("");
   }
 
-  const tabs = useMemo(
-    () => [
-      { id: "analyze", label: "Analyze" },
-      { id: "builder", label: "Builder" },
-      { id: "saved", label: "Saved CVs" },
-    ],
-    [],
-  );
-
   if (!token) {
-    return (
-      <main className="container">
-        <AuthPanel onAuth={setToken} />
-      </main>
-    );
+    return <AuthPanel onAuth={setToken} />;
   }
 
   return (
-    <main className="container grid">
-      <section className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div className="tabs">
-          {tabs.map((item) => (
-            <button
-              key={item.id}
-              className={`button ${tab === item.id ? "" : "ghost"}`}
-              onClick={() => setTab(item.id)}
-            >
-              {item.label}
-            </button>
-          ))}
+    <main className="container dashboard-shell">
+      <section className="card panel">
+        <div className="dashboard-top">
+          <div>
+            <span className="pill">Workspace</span>
+            <h2 style={{ marginBottom: 6 }}>CV Intelligence Dashboard</h2>
+            <p className="muted" style={{ margin: 0 }}>
+              API: {getApiBase()}
+            </p>
+          </div>
+          <button className="button ghost" onClick={logout}>
+            Logout
+          </button>
         </div>
-        <button className="button ghost" onClick={logout}>Logout</button>
+      </section>
+
+      <section className="tab-nav">
+        {tabs.map((item) => (
+          <button
+            key={item.id}
+            className={`tab-button ${tab === item.id ? "active" : ""}`}
+            onClick={() => setTab(item.id)}
+          >
+            {item.label}
+          </button>
+        ))}
       </section>
 
       {tab === "analyze" ? <AnalyzeTab token={token} /> : null}
       {tab === "builder" ? <BuilderTab token={token} /> : null}
       {tab === "saved" ? <SavedTab token={token} /> : null}
-
-      <p className="muted">API base: {getApiBase()}</p>
     </main>
   );
 }

@@ -2,13 +2,19 @@ import io
 from typing import Iterable
 
 from django.utils.text import slugify
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-from reportlab.platypus import HRFlowable, Paragraph, SimpleDocTemplate, Spacer
 
 
 def build_resume_pdf_bytes(resume) -> bytes:
+    reportlab = _load_reportlab()
+    colors = reportlab["colors"]
+    A4 = reportlab["A4"]
+    ParagraphStyle = reportlab["ParagraphStyle"]
+    getSampleStyleSheet = reportlab["getSampleStyleSheet"]
+    HRFlowable = reportlab["HRFlowable"]
+    Paragraph = reportlab["Paragraph"]
+    SimpleDocTemplate = reportlab["SimpleDocTemplate"]
+    Spacer = reportlab["Spacer"]
+
     content = resume.content or {}
     analysis = resume.latest_analysis or {}
 
@@ -94,15 +100,16 @@ def build_resume_pdf_bytes(resume) -> bytes:
     story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#D1D5DB")))
 
     if summary:
-        _append_section(story, "Professional Summary", summary, section_style, body_style)
+        _append_section(story, "Professional Summary", summary, section_style, body_style, Paragraph)
 
     if skills:
         _append_section(
             story,
             "Core Skills",
-            ", ".join(_escape(item) for item in skills),
+            ", ".join(skills),
             section_style,
             body_style,
+            Paragraph,
         )
 
     if experience_items:
@@ -136,9 +143,9 @@ def build_export_filename(title: str) -> str:
     return f"{safe}.pdf"
 
 
-def _append_section(story, title: str, content: str, section_style, body_style):
-    story.append(Paragraph(title, section_style))
-    story.append(Paragraph(_escape(content), body_style))
+def _append_section(story, title: str, content: str, section_style, body_style, paragraph_cls):
+    story.append(paragraph_cls(title, section_style))
+    story.append(paragraph_cls(_escape(content), body_style))
 
 
 def _pick_first(*values):
@@ -195,3 +202,40 @@ def _normalize_items(value) -> Iterable[str]:
     if isinstance(value, str):
         return [line.strip("- ").strip() for line in value.splitlines() if line.strip()]
     return []
+
+
+def _build_contact_line(contact_value) -> str:
+    if isinstance(contact_value, dict):
+        fields = [
+            contact_value.get("email"),
+            contact_value.get("phone"),
+            contact_value.get("location"),
+            contact_value.get("linkedin"),
+            contact_value.get("github"),
+            contact_value.get("website"),
+        ]
+        return " | ".join(str(item).strip() for item in fields if str(item or "").strip())
+    if isinstance(contact_value, str):
+        return contact_value.strip()
+    return ""
+
+
+def _load_reportlab():
+    try:
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+        from reportlab.platypus import HRFlowable, Paragraph, SimpleDocTemplate, Spacer
+
+        return {
+            "colors": colors,
+            "A4": A4,
+            "ParagraphStyle": ParagraphStyle,
+            "getSampleStyleSheet": getSampleStyleSheet,
+            "HRFlowable": HRFlowable,
+            "Paragraph": Paragraph,
+            "SimpleDocTemplate": SimpleDocTemplate,
+            "Spacer": Spacer,
+        }
+    except ModuleNotFoundError as exc:
+        raise RuntimeError("PDF export dependency missing: reportlab is not installed.") from exc
