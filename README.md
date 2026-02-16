@@ -8,6 +8,21 @@ Tech stack:
 - Celery
 - Gemini API wrapper
 
+## What This Project Does
+CV Analyzer is a SaaS-style platform that helps users improve their resumes with AI-powered feedback.
+Users can upload a CV, get ATS-style analysis, rewrite suggestions, and keyword gap detection, then save and share improved versions.
+
+## Core Product Flows
+- Analyze-only flow: Upload CV -> async analysis job -> polling result (not permanently stored by default).
+- Save flow: User explicitly saves the analyzed CV to PostgreSQL with version history.
+- Share flow: User generates a view-only share token and sends a public link.
+
+## How To Present This In Your CV
+- Built an AI-powered CV optimization SaaS using Next.js, Django REST Framework, PostgreSQL, Redis, and Celery.
+- Designed asynchronous processing for resume analysis to avoid API timeouts and improve responsiveness.
+- Implemented secure auth, resume CRUD/versioning, share links, and environment-based secret management.
+- Containerized full stack with Docker and documented reproducible local setup for team onboarding.
+
 ## Security note
 - Keep all secrets in local `.env` only.
 - `.env` is ignored by git and must not be pushed to GitHub.
