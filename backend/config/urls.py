@@ -5,9 +5,11 @@ from apps.analysis.views import AnalyzeCreateView, AnalyzeStatusView
 from apps.billing.views import AdminMetricsView
 from apps.resumes.views import ResumeDetailView, ResumeListCreateView, ResumePdfExportView, ResumeShareCreateView
 from apps.sharing.views import ShareDetailView
+from config.health import HealthCheckView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("api/health", HealthCheckView.as_view(), name="health-check"),
     path("api/auth/", include("apps.accounts.urls")),
     path("api/analyze", AnalyzeCreateView.as_view(), name="analyze-create"),
     path("api/analyze/<uuid:job_id>", AnalyzeStatusView.as_view(), name="analyze-status"),
