@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { apiFetch, clearAccessToken, getAccessToken, getApiBase, setAccessToken } from "@/lib/api";
+import { apiDownload, apiFetch, clearAccessToken, getAccessToken, getApiBase, setAccessToken } from "@/lib/api";
 
 function AuthPanel({ onAuth }) {
   const [username, setUsername] = useState("");
@@ -248,6 +248,22 @@ function SavedTab({ token }) {
     }
   }
 
+  async function exportPdf(id) {
+    try {
+      const { blob, filename } = await apiDownload(`/api/resumes/${id}/export`, token);
+      const url = window.URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
   return (
     <section className="card grid">
       <h3>Saved CVs</h3>
@@ -257,7 +273,10 @@ function SavedTab({ token }) {
           <article key={resume.id} className="card">
             <h4>{resume.title}</h4>
             <p className="muted">Updated: {new Date(resume.updated_at).toLocaleString()}</p>
-            <button className="button secondary" onClick={() => shareResume(resume.id)}>Create Share Link</button>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button className="button secondary" onClick={() => shareResume(resume.id)}>Create Share Link</button>
+              <button className="button ghost" onClick={() => exportPdf(resume.id)}>Export PDF</button>
+            </div>
           </article>
         ))}
       </div>

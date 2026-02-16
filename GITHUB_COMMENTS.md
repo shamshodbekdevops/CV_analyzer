@@ -47,3 +47,7 @@ Moved database and runtime credentials to `.env`, updated Docker Compose to read
 ## Part I - Analyze Source Choice (CV or GitHub)
 Comment:
 Upgraded analysis pipeline to accept either uploaded CV files or GitHub URLs, added GitHub scraping service, and improved AI response schema for stronger feature-level feedback.
+
+## Part J - Resume PDF Export
+Comment:
+Added authenticated PDF export endpoint for saved resumes and connected dashboard download action so users can generate a clean, professional resume PDF in one click.

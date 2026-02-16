@@ -1,10 +1,12 @@
-﻿import secrets
+import secrets
 
+from django.http import HttpResponse
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.resumes.models import Resume, ResumeVersion
+from apps.resumes.pdf_export import build_export_filename, build_resume_pdf_bytes
 from apps.resumes.serializers import ResumeSerializer
 from apps.sharing.models import ShareLink
 
@@ -67,3 +69,19 @@ class ResumeShareCreateView(APIView):
         token = secrets.token_urlsafe(24)
         share = ShareLink.objects.create(resume=resume, token=token)
         return Response({"token": share.token, "url": f"/share/{share.token}"}, status=status.HTTP_201_CREATED)
+
+
+class ResumePdfExportView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, resume_id):
+        resume = Resume.objects.filter(id=resume_id, owner=request.user).select_related("owner").first()
+        if not resume:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        pdf_bytes = build_resume_pdf_bytes(resume)
+        filename = build_export_filename(resume.title)
+
+        response = HttpResponse(pdf_bytes, content_type="application/pdf")
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        return response
