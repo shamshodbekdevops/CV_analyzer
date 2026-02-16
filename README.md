@@ -23,6 +23,22 @@ Users can upload a CV, get ATS-style analysis, rewrite suggestions, and keyword 
 - Premium dashboard UI with dark/light mode.
 - Resume builder with structured fields and one-click PDF export.
 
+## Product Roadmap
+### Phase 1 (Now)
+- CV/GitHub source analysis with async processing.
+- Resume save/share and one-click PDF export.
+- Premium dashboard with dark/light mode.
+
+### Phase 2 (Next)
+- Multiple PDF templates and style presets.
+- Better CV parser for PDF/DOCX structured extraction.
+- Usage analytics panel for users.
+
+### Phase 3 (Scale)
+- Stripe billing + plan upgrades.
+- Team workspace and shared resume libraries.
+- Queue prioritization and AI usage cost controls.
+
 ## How To Present This In Your CV
 - Built an AI-powered CV optimization SaaS using Next.js, Django REST Framework, PostgreSQL, Redis, and Celery.
 - Designed asynchronous processing for resume analysis to avoid API timeouts and improve responsiveness.
