@@ -12,15 +12,21 @@ Tech stack:
 - Keep all secrets in local `.env` only.
 - `.env` is ignored by git and must not be pushed to GitHub.
 
-## Quick start (Docker)
+## Step-by-step run guide (Docker, Windows CMD)
 
-1. Create `.env` from template:
+1. Open `cmd` and go to the project folder:
 
-```bash
-cp .env.example .env
+```cmd
+cd /d D:\SaaS\CV_analyzer
 ```
 
-2. Edit `.env` values (required):
+2. Create `.env` from `.env.example` (first time only):
+
+```cmd
+copy .env.example .env
+```
+
+3. Edit `.env` values (required):
 
 ```env
 DJANGO_SECRET_KEY=your-long-random-secret
@@ -32,24 +38,61 @@ REDIS_URL=redis://redis:6379/0
 CELERY_BROKER_URL=redis://redis:6379/1
 CELERY_RESULT_BACKEND=redis://redis:6379/2
 NEXT_PUBLIC_API_BASE=http://localhost:8000
+GEMINI_API_KEY=your-gemini-api-key
 ```
 
-3. Start services:
+4. Start all services:
 
-```bash
+```cmd
 docker compose up -d --build
 ```
 
-4. Run migrations:
+5. Run database migrations:
 
-```bash
+```cmd
 docker compose exec web python manage.py makemigrations
 docker compose exec web python manage.py migrate
 ```
 
-5. Open app:
+6. Verify containers are running:
+
+```cmd
+docker compose ps
+```
+
+7. Open the app:
 - Frontend: http://localhost:3000
 - Backend admin: http://localhost:8000/admin
+
+## Daily usage commands (CMD)
+
+Start existing containers:
+```cmd
+docker compose up -d
+```
+
+Stop containers:
+```cmd
+docker compose down
+```
+
+Restart one service:
+```cmd
+docker compose restart web
+docker compose restart worker
+```
+
+Watch logs:
+```cmd
+docker compose logs --tail=200 web
+docker compose logs --tail=200 worker
+docker compose logs --tail=200 frontend
+```
+
+Rebuild after code/dependency changes:
+```cmd
+docker compose up -d --build
+```
 
 ## API
 - `POST /api/auth/register`
