@@ -49,6 +49,9 @@ Users can upload a CV, get ATS-style analysis, rewrite suggestions, and keyword 
 - Keep all secrets in local `.env` only.
 - `.env` is ignored by git and must not be pushed to GitHub.
 
+## Contributing
+- See `CONTRIBUTING.md` for branch, commit, and PR standards.
+
 ## Step-by-step run guide (Docker, Windows CMD)
 
 1. Open `cmd` and go to the project folder:
