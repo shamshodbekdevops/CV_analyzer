@@ -43,3 +43,7 @@ Implemented share-token flow with view-only endpoint and frontend share page sup
 ## Part H - Secrets and Docker Runtime
 Comment:
 Moved database and runtime credentials to `.env`, updated Docker Compose to read DB/frontend values from environment, generated initial Django migrations, and verified the full stack runs with Docker Desktop.
+
+## Part I - Analyze Source Choice (CV or GitHub)
+Comment:
+Upgraded analysis pipeline to accept either uploaded CV files or GitHub URLs, added GitHub scraping service, and improved AI response schema for stronger feature-level feedback.

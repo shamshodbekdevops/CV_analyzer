@@ -125,6 +125,7 @@ MAX_UPLOAD_SIZE_MB = int(os.getenv("MAX_UPLOAD_SIZE_MB", "10"))
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
 
 FREE_PLAN_ANALYSIS_LIMIT = int(os.getenv("FREE_PLAN_ANALYSIS_LIMIT", "25"))
 
