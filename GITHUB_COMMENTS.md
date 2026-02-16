@@ -39,3 +39,7 @@ Implemented explicit save flow: resume and version records are persisted only wh
 ## Flow 3 - Share Link
 Comment:
 Implemented share-token flow with view-only endpoint and frontend share page support.
+
+## Part H - Secrets and Docker Runtime
+Comment:
+Moved database and runtime credentials to `.env`, updated Docker Compose to read DB/frontend values from environment, generated initial Django migrations, and verified the full stack runs with Docker Desktop.

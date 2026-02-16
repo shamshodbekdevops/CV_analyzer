@@ -8,38 +8,48 @@ Tech stack:
 - Celery
 - Gemini API wrapper
 
-## Quick start
+## Security note
+- Keep all secrets in local `.env` only.
+- `.env` is ignored by git and must not be pushed to GitHub.
 
-1. Create `.env` in repo root:
+## Quick start (Docker)
 
+1. Create `.env` from template:
+
+```bash
+cp .env.example .env
 ```
-DJANGO_SECRET_KEY=change-me
-DJANGO_DEBUG=true
-DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
+
+2. Edit `.env` values (required):
+
+```env
+DJANGO_SECRET_KEY=your-long-random-secret
+POSTGRES_DB=cv_analyzer
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
 DATABASE_URL=postgresql://postgres:postgres@db:5432/cv_analyzer
 REDIS_URL=redis://redis:6379/0
 CELERY_BROKER_URL=redis://redis:6379/1
 CELERY_RESULT_BACKEND=redis://redis:6379/2
-GEMINI_API_KEY=
-ANALYZE_RESULT_TTL_SECONDS=1800
-MAX_UPLOAD_SIZE_MB=10
+NEXT_PUBLIC_API_BASE=http://localhost:8000
 ```
 
-2. Run services:
+3. Start services:
 
-```
+```bash
 docker compose up -d --build
 ```
 
-3. Backend migrations:
+4. Run migrations:
 
-```
+```bash
+docker compose exec web python manage.py makemigrations
 docker compose exec web python manage.py migrate
 ```
 
-4. Frontend:
-
-Open http://localhost:3000
+5. Open app:
+- Frontend: http://localhost:3000
+- Backend admin: http://localhost:8000/admin
 
 ## API
 - `POST /api/auth/register`
