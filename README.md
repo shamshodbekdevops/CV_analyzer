@@ -52,6 +52,63 @@ Users can upload a CV, get ATS-style analysis, rewrite suggestions, and keyword 
 ## Contributing
 - See `CONTRIBUTING.md` for branch, commit, and PR standards.
 
+## Zero-to-Run (From Scratch, Windows CMD)
+
+1. Open Docker Desktop first (wait until engine is running).
+
+2. Open `cmd` and move to project folder:
+
+```cmd
+cd /d D:\SaaS\CV_analyzer
+```
+
+3. Verify Docker engine:
+
+```cmd
+docker version
+docker context use desktop-linux
+```
+
+4. Create `.env` from template (first time only):
+
+```cmd
+copy .env.example .env
+```
+
+5. Fill required values in `.env`:
+- `DJANGO_SECRET_KEY`
+- `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`
+- `DATABASE_URL`
+- `GEMINI_API_KEY`
+
+6. Build and start all services:
+
+```cmd
+docker compose up -d --build
+```
+
+7. Run migrations:
+
+```cmd
+docker compose exec web python manage.py migrate
+```
+
+8. Check status:
+
+```cmd
+docker compose ps
+```
+
+9. Open:
+- Frontend: `http://localhost:3000`
+- API health: `http://localhost:8000/api/health`
+
+10. Stop when needed:
+
+```cmd
+docker compose down
+```
+
 ## Step-by-step run guide (Docker, Windows CMD)
 
 1. Open `cmd` and go to the project folder:
