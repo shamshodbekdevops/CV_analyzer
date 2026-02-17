@@ -631,6 +631,46 @@ function SavedTab({ token }) {
   const [resumes, setResumes] = useState([]);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
+  const [editingId, setEditingId] = useState(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editSummary, setEditSummary] = useState("");
+  const [editExperience, setEditExperience] = useState("");
+  const [editSkillsCsv, setEditSkillsCsv] = useState("");
+  const [restoreVersionIdByResume, setRestoreVersionIdByResume] = useState({});
+
+  function asLineText(value) {
+    if (Array.isArray(value)) {
+      return value.map((item) => String(item)).join("\n");
+    }
+    if (typeof value === "string") {
+      return value;
+    }
+    return "";
+  }
+
+  function asCsvText(value) {
+    if (Array.isArray(value)) {
+      return value.map((item) => String(item)).join(", ");
+    }
+    if (typeof value === "string") {
+      return value;
+    }
+    return "";
+  }
+
+  function parseLineList(value) {
+    return String(value || "")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+  }
+
+  function parseCsvList(value) {
+    return String(value || "")
+      .split(",")
+      .map((line) => line.trim())
+      .filter(Boolean);
+  }
 
   async function loadResumes() {
     setError("");
@@ -681,6 +721,78 @@ function SavedTab({ token }) {
     }
   }
 
+  function startEdit(resume) {
+    setEditingId(resume.id);
+    setEditTitle(resume.title || "");
+    setEditSummary(String(resume.content?.summary || ""));
+    setEditExperience(asLineText(resume.content?.experience));
+    setEditSkillsCsv(asCsvText(resume.content?.skills));
+    setError("");
+    setInfo("");
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+  }
+
+  async function saveEdit(resume) {
+    try {
+      const payload = {
+        title: editTitle.trim() || resume.title,
+        content: {
+          ...(resume.content || {}),
+          summary: editSummary.trim(),
+          experience: parseLineList(editExperience),
+          skills: parseCsvList(editSkillsCsv),
+        },
+      };
+      const updated = await apiFetch(
+        `/api/resumes/${resume.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+        token,
+      );
+      setResumes((prev) => prev.map((item) => (item.id === resume.id ? updated : item)));
+      setEditingId(null);
+      setInfo("Resume updated.");
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  async function restorePreviousVersion(resume) {
+    const selectedVersionId = restoreVersionIdByResume[resume.id];
+    const selectedVersion = (resume.versions || []).find((version) => String(version.id) === String(selectedVersionId));
+    if (!selectedVersion) {
+      setError("Choose a version first.");
+      return;
+    }
+
+    try {
+      const updated = await apiFetch(
+        `/api/resumes/${resume.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            content: selectedVersion.content || {},
+            latest_analysis: selectedVersion.analysis_snapshot || {},
+          }),
+        },
+        token,
+      );
+      setResumes((prev) => prev.map((item) => (item.id === resume.id ? updated : item)));
+      setRestoreVersionIdByResume((prev) => ({ ...prev, [resume.id]: "" }));
+      setEditingId(null);
+      setInfo("Previous version restored.");
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
   return (
     <section className="card panel form-grid">
       <div className="dashboard-top">
@@ -702,10 +814,77 @@ function SavedTab({ token }) {
             <button className="button ghost" onClick={() => exportPdf(resume.id)}>
               Export PDF
             </button>
+            <button className="button ghost" onClick={() => startEdit(resume)}>
+              Edit
+            </button>
             <button className="button ghost" onClick={() => deleteResume(resume.id)}>
               Delete
             </button>
           </div>
+
+          {editingId === resume.id ? (
+            <div className="form-grid" style={{ marginTop: 12 }}>
+              <div>
+                <label>Title</label>
+                <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} />
+              </div>
+              <div>
+                <label>Summary</label>
+                <textarea rows={4} value={editSummary} onChange={(e) => setEditSummary(e.target.value)} />
+              </div>
+              <div>
+                <label>Experience (one line per bullet)</label>
+                <textarea rows={5} value={editExperience} onChange={(e) => setEditExperience(e.target.value)} />
+              </div>
+              <div>
+                <label>Skills (comma separated)</label>
+                <input value={editSkillsCsv} onChange={(e) => setEditSkillsCsv(e.target.value)} />
+              </div>
+              <div className="stack">
+                <button className="button secondary" onClick={() => saveEdit(resume)}>
+                  Save Edit
+                </button>
+                <button className="button ghost" onClick={cancelEdit}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {(resume.versions || []).length > 1 ? (
+            <div className="form-row" style={{ marginTop: 12 }}>
+              <div>
+                <label>Restore Previous Version</label>
+                <select
+                  value={restoreVersionIdByResume[resume.id] || ""}
+                  onChange={(e) =>
+                    setRestoreVersionIdByResume((prev) => ({
+                      ...prev,
+                      [resume.id]: e.target.value,
+                    }))
+                  }
+                >
+                  <option value="">Choose version</option>
+                  {(resume.versions || [])
+                    .slice(1)
+                    .map((version) => (
+                      <option key={version.id} value={version.id}>
+                        {new Date(version.created_at).toLocaleString()}
+                      </option>
+                    ))}
+                </select>
+              </div>
+              <div className="stack" style={{ alignItems: "flex-end" }}>
+                <button
+                  className="button ghost"
+                  onClick={() => restorePreviousVersion(resume)}
+                  disabled={!restoreVersionIdByResume[resume.id]}
+                >
+                  Restore
+                </button>
+              </div>
+            </div>
+          ) : null}
         </article>
       ))}
 
