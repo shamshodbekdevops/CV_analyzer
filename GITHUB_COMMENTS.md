@@ -55,3 +55,7 @@ Added authenticated PDF export endpoint for saved resumes and connected dashboar
 ## Part K - Premium Frontend Redesign
 Comment:
 Redesigned landing, dashboard, pricing, and share pages with a modern premium style, dark/light mode toggle, source-type analysis UX (CV or GitHub), and improved resume builder workflow.
+
+## Part L - Saved Resume Editing and Version Restore
+Comment:
+Added inline edit support for saved resumes, introduced restore-from-previous-version flow in the Saved tab, and improved dashboard state persistence to avoid losing analysis context when switching tabs.
