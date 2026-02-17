@@ -50,10 +50,6 @@ export async function apiFetch(path, options = {}, token = "") {
   return response.json();
 }
 
-export function getApiBase() {
-  return API_BASE;
-}
-
 export async function apiDownload(path, token = "") {
   const headers = {};
   if (token) {

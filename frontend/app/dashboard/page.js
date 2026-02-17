@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { apiDownload, apiFetch, clearAccessToken, getAccessToken, getApiBase, setAccessToken } from "@/lib/api";
+import { apiDownload, apiFetch, clearAccessToken, getAccessToken, setAccessToken } from "@/lib/api";
 
 function ListSection({ title, items }) {
   if (!items || !items.length) {
@@ -29,6 +29,33 @@ function downloadBlob(blob, filename) {
   anchor.click();
   anchor.remove();
   window.URL.revokeObjectURL(url);
+}
+
+const ANALYZE_STATE_KEY = "cv_analyzer_analyze_state";
+const BUILDER_STATE_KEY = "cv_analyzer_builder_state";
+
+function loadClientState(key, fallback) {
+  if (typeof window === "undefined") {
+    return fallback;
+  }
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) {
+      return fallback;
+    }
+    return { ...fallback, ...JSON.parse(raw) };
+  } catch {
+    return fallback;
+  }
+}
+
+function saveClientState(key, value) {
+  if (typeof window === "undefined") {
+    return;
+  }
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch {}
 }
 
 function AuthPanel({ onAuth }) {
@@ -119,6 +146,33 @@ function AnalyzeTab({ token }) {
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [saveTitle, setSaveTitle] = useState("AI Optimized Resume");
+  const [saveDone, setSaveDone] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const state = loadClientState(ANALYZE_STATE_KEY, {});
+    setSourceType(state.sourceType || "cv");
+    setGithubUrl(state.githubUrl || "");
+    setJobDescription(state.jobDescription || "");
+    setJobId(state.jobId || "");
+    setStatus(state.status || "");
+    setResult(state.result || null);
+    setSaveTitle(state.saveTitle || "AI Optimized Resume");
+    setSaveDone(Boolean(state.saveDone));
+  }, []);
+
+  useEffect(() => {
+    saveClientState(ANALYZE_STATE_KEY, {
+      sourceType,
+      githubUrl,
+      jobDescription,
+      jobId,
+      status,
+      result,
+      saveTitle,
+      saveDone,
+    });
+  }, [sourceType, githubUrl, jobDescription, jobId, status, result, saveTitle, saveDone]);
 
   useEffect(() => {
     if (!jobId) {
@@ -147,6 +201,7 @@ function AnalyzeTab({ token }) {
   async function runAnalyze() {
     setError("");
     setInfo("");
+    setSaveDone(false);
     setResult(null);
     setJobId("");
     setStatus("pending");
@@ -187,6 +242,7 @@ function AnalyzeTab({ token }) {
     }
 
     try {
+      setSaving(true);
       await apiFetch(
         "/api/resumes",
         {
@@ -204,9 +260,12 @@ function AnalyzeTab({ token }) {
         },
         token,
       );
+      setSaveDone(true);
       setInfo("Analysis result was saved into your resume library.");
     } catch (e) {
       setError(e.message);
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -258,7 +317,6 @@ function AnalyzeTab({ token }) {
         </button>
         {jobId ? <span className={`status-badge ${status || "pending"}`}>{status || "pending"}</span> : null}
       </div>
-      {jobId ? <p className="muted">Job ID: {jobId}</p> : null}
       {error ? <p className="inline-alert error">{error}</p> : null}
       {info ? <p className="inline-alert ok">{info}</p> : null}
 
@@ -307,8 +365,8 @@ function AnalyzeTab({ token }) {
               <input value={saveTitle} onChange={(e) => setSaveTitle(e.target.value)} />
             </div>
             <div className="stack" style={{ alignItems: "flex-end" }}>
-              <button className="button secondary" onClick={saveResult}>
-                Save Analysis Result
+              <button className="button secondary" onClick={saveResult} disabled={saving}>
+                {saving ? "Saving..." : saveDone ? "Saved" : "Save Analysis Result"}
               </button>
             </div>
           </div>
@@ -336,6 +394,61 @@ function BuilderTab({ token }) {
   const [savedResumeId, setSavedResumeId] = useState(null);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
+
+  useEffect(() => {
+    const state = loadClientState(BUILDER_STATE_KEY, {});
+    setTitle(state.title || "My Professional Resume");
+    setFullName(state.fullName || "");
+    setHeadline(state.headline || "");
+    setEmail(state.email || "");
+    setPhone(state.phone || "");
+    setLocation(state.location || "");
+    setLinkedin(state.linkedin || "");
+    setGithub(state.github || "");
+    setWebsite(state.website || "");
+    setSummary(state.summary || "");
+    setSkillsCsv(state.skillsCsv || "");
+    setExperience(state.experience || "");
+    setEducation(state.education || "");
+    setProjects(state.projects || "");
+    setSavedResumeId(state.savedResumeId || null);
+  }, []);
+
+  useEffect(() => {
+    saveClientState(BUILDER_STATE_KEY, {
+      title,
+      fullName,
+      headline,
+      email,
+      phone,
+      location,
+      linkedin,
+      github,
+      website,
+      summary,
+      skillsCsv,
+      experience,
+      education,
+      projects,
+      savedResumeId,
+    });
+  }, [
+    title,
+    fullName,
+    headline,
+    email,
+    phone,
+    location,
+    linkedin,
+    github,
+    website,
+    summary,
+    skillsCsv,
+    experience,
+    education,
+    projects,
+    savedResumeId,
+  ]);
 
   function parseLines(value) {
     return value
@@ -554,6 +667,20 @@ function SavedTab({ token }) {
     }
   }
 
+  async function deleteResume(id) {
+    const shouldDelete = window.confirm("Delete this resume?");
+    if (!shouldDelete) {
+      return;
+    }
+    try {
+      await apiFetch(`/api/resumes/${id}`, { method: "DELETE" }, token);
+      setResumes((prev) => prev.filter((resume) => resume.id !== id));
+      setInfo("Resume deleted.");
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
   return (
     <section className="card panel form-grid">
       <div className="dashboard-top">
@@ -574,6 +701,9 @@ function SavedTab({ token }) {
             </button>
             <button className="button ghost" onClick={() => exportPdf(resume.id)}>
               Export PDF
+            </button>
+            <button className="button ghost" onClick={() => deleteResume(resume.id)}>
+              Delete
             </button>
           </div>
         </article>
@@ -618,9 +748,6 @@ export default function DashboardPage() {
           <div>
             <span className="pill">Workspace</span>
             <h2 style={{ marginBottom: 6 }}>CV Intelligence Dashboard</h2>
-            <p className="muted" style={{ margin: 0 }}>
-              API: {getApiBase()}
-            </p>
           </div>
           <button className="button ghost" onClick={logout}>
             Logout
@@ -640,9 +767,15 @@ export default function DashboardPage() {
         ))}
       </section>
 
-      {tab === "analyze" ? <AnalyzeTab token={token} /> : null}
-      {tab === "builder" ? <BuilderTab token={token} /> : null}
-      {tab === "saved" ? <SavedTab token={token} /> : null}
+      <section hidden={tab !== "analyze"}>
+        <AnalyzeTab token={token} />
+      </section>
+      <section hidden={tab !== "builder"}>
+        <BuilderTab token={token} />
+      </section>
+      <section hidden={tab !== "saved"}>
+        <SavedTab token={token} />
+      </section>
     </main>
   );
 }
