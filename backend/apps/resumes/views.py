@@ -57,6 +57,13 @@ class ResumeDetailView(APIView):
         )
         return Response(ResumeSerializer(updated).data)
 
+    def delete(self, request, resume_id):
+        resume = Resume.objects.filter(id=resume_id, owner=request.user).first()
+        if not resume:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        resume.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 class ResumeShareCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]

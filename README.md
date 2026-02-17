@@ -202,6 +202,7 @@ docker compose up -d --build
 - `GET /api/resumes`
 - `GET /api/resumes/{id}`
 - `PATCH /api/resumes/{id}`
+- `DELETE /api/resumes/{id}`
 - `POST /api/resumes/{id}/share`
 - `GET /api/resumes/{id}/export`
 - `GET /api/admin/metrics`
