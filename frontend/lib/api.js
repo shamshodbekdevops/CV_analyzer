@@ -1,7 +1,25 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ? "" : "http://localhost:8000";
+const API_PROXY_BASE = "/api/proxy";
 const ACCESS_TOKEN_KEY = "access_token";
 const REFRESH_TOKEN_KEY = "refresh_token";
 const AUTH_USERNAME_KEY = "auth_username";
+
+function normalizeApiPath(path) {
+  const rawPath = String(path || "");
+  if (!rawPath) {
+    return "/";
+  }
+  if (rawPath.startsWith("/api/")) {
+    return rawPath.slice(4);
+  }
+  if (rawPath.startsWith("/")) {
+    return rawPath;
+  }
+  return `/${rawPath}`;
+}
+
+function toProxyUrl(path) {
+  return `${API_PROXY_BASE}${normalizeApiPath(path)}`;
+}
 
 async function safeFetch(url, options) {
   try {
@@ -91,7 +109,7 @@ export async function refreshAccessToken() {
     throw new Error("Authentication expired. Please login again.");
   }
 
-  const response = await safeFetch(`${API_BASE}/api/auth/refresh`, {
+  const response = await safeFetch(toProxyUrl("/api/auth/refresh"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ refresh }),
@@ -116,7 +134,7 @@ export async function apiFetch(path, options = {}, token = "", retried = false) 
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const response = await safeFetch(`${API_BASE}${path}`, {
+  const response = await safeFetch(toProxyUrl(path), {
     ...options,
     headers,
   });
@@ -142,7 +160,7 @@ export async function apiDownload(path, token = "", retried = false) {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const response = await safeFetch(`${API_BASE}${path}`, {
+  const response = await safeFetch(toProxyUrl(path), {
     method: "GET",
     headers,
   });
