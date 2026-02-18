@@ -24,10 +24,14 @@ function getBackendBase() {
     process.env.NEXT_PUBLIC_API_BASE ||
     process.env.API_BASE_URL ||
     "";
+  const isRailway = Boolean(process.env.RAILWAY_ENVIRONMENT);
+  if (explicit && isRailway && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(explicit)) {
+    return "http://backend-web.railway.internal:8080";
+  }
   if (explicit) {
     return stripTrailingSlash(explicit);
   }
-  if (process.env.RAILWAY_ENVIRONMENT) {
+  if (isRailway) {
     return "http://backend-web.railway.internal:8080";
   }
   return "http://web:8000";
