@@ -56,3 +56,7 @@ Railway deployment work log (without .env values)
 9) Frontend start compatibility:
 - Kept `npm start` script platform-neutral.
 - Moved Railway `PORT` binding logic to Docker `CMD` so local Windows npm usage is unaffected.
+
+10) Git status:
+- Commit created: `0fe10e1` (`Prepare full Railway deployment for web worker frontend`)
+- Pushed to `origin/main` successfully.
