@@ -13,8 +13,10 @@ import {
   setAuthTokens,
 } from "@/lib/api";
 
-const ANALYZE_STATE_KEY = "cv_analyzer_analyze_state";
-const BUILDER_STATE_KEY = "cv_analyzer_builder_state";
+const ANALYZE_STATE_NAMESPACE = "cv_analyzer_analyze_state";
+const BUILDER_STATE_NAMESPACE = "cv_analyzer_builder_state";
+const LEGACY_ANALYZE_STATE_KEY = "cv_analyzer_analyze_state";
+const LEGACY_BUILDER_STATE_KEY = "cv_analyzer_builder_state";
 
 function downloadBlob(blob, filename) {
   const url = window.URL.createObjectURL(blob);
@@ -46,6 +48,32 @@ function saveClientState(key, value) {
   try {
     window.localStorage.setItem(key, JSON.stringify(value));
   } catch {}
+}
+
+function normalizeStorageScope(scope) {
+  const normalized = String(scope || "default")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_.-]/g, "_");
+  return normalized || "default";
+}
+
+function scopedStateKey(namespace, scope) {
+  return `${namespace}::${normalizeStorageScope(scope)}`;
+}
+
+function clearClientStateByPrefix(prefix) {
+  if (typeof window === "undefined") {
+    return;
+  }
+  const keys = [];
+  for (let index = 0; index < window.localStorage.length; index += 1) {
+    const key = window.localStorage.key(index);
+    if (key && key.startsWith(prefix)) {
+      keys.push(key);
+    }
+  }
+  keys.forEach((key) => window.localStorage.removeItem(key));
 }
 
 function getStringList(value) {
@@ -111,6 +139,43 @@ function CoverageChart({ coverage, strengths, missing }) {
   );
 }
 
+function metricTone(value, inverse = false) {
+  const level = Number(value) || 0;
+  if (!inverse) {
+    if (level >= 75) {
+      return "good";
+    }
+    if (level >= 45) {
+      return "mid";
+    }
+    return "bad";
+  }
+  if (level >= 75) {
+    return "bad";
+  }
+  if (level >= 45) {
+    return "mid";
+  }
+  return "good";
+}
+
+function MetricGauge({ label, value, hint, inverse = false }) {
+  const safe = Math.max(0, Math.min(100, Number(value) || 0));
+  const tone = metricTone(safe, inverse);
+  return (
+    <article className={`metric-gauge-card ${tone}`}>
+      <div className="metric-gauge-head">
+        <h4>{label}</h4>
+        <strong>{safe}%</strong>
+      </div>
+      <div className="metric-gauge-track">
+        <div className="metric-gauge-fill" style={{ width: `${safe}%` }} />
+      </div>
+      <p className="muted">{hint}</p>
+    </article>
+  );
+}
+
 function ScorePanel({ result }) {
   const score = Number(result?.ats_score || 0);
   const strengths = getStringList(result?.strengths);
@@ -121,6 +186,12 @@ function ScorePanel({ result }) {
   const nextActions = getStringList(result?.next_actions);
   const totalKeywordSignals = strengths.length + missingKeywords.length;
   const keywordCoverage = totalKeywordSignals > 0 ? Math.round((strengths.length / totalKeywordSignals) * 100) : 0;
+  const strengthWeight = strengths.length + features.length;
+  const riskWeight = missingKeywords.length + weaknesses.length;
+  const profileBalance = Math.round((strengthWeight / Math.max(1, strengthWeight + riskWeight)) * 100);
+  const executionReadiness = Math.round((score * 0.6) + (keywordCoverage * 0.4));
+  const improvementUrgency = Math.round((riskWeight / Math.max(1, strengthWeight + riskWeight)) * 100);
+  const rewriteMomentum = Math.min(100, (improvedBullets.length * 18) + (nextActions.length * 10));
   const distributionRows = [
     { label: "Strengths", value: strengths.length, color: "var(--ok)" },
     { label: "Missing Keywords", value: missingKeywords.length, color: "var(--warn)" },
@@ -157,6 +228,17 @@ function ScorePanel({ result }) {
       <div className="chart-grid">
         <DistributionChart rows={distributionRows} />
         <CoverageChart coverage={keywordCoverage} strengths={strengths.length} missing={missingKeywords.length} />
+      </div>
+      <div className="visual-metrics-grid">
+        <MetricGauge label="Execution Readiness" value={executionReadiness} hint="Overall ATS + keyword alignment signal." />
+        <MetricGauge label="Profile Balance" value={profileBalance} hint="How much strengths outweigh current gaps." />
+        <MetricGauge label="Rewrite Momentum" value={rewriteMomentum} hint="How actionable the rewritten content is." />
+        <MetricGauge
+          label="Improvement Urgency"
+          value={improvementUrgency}
+          hint="Higher value means faster update needed."
+          inverse
+        />
       </div>
       <div className="feedback-grid">
         <ListBlock title="Top Strengths" items={strengths} />
@@ -299,7 +381,7 @@ function AuthPanel({ onAuth }) {
   );
 }
 
-function AnalyzeTab({ token }) {
+function AnalyzeTab({ token, storageScope }) {
   const [sourceType, setSourceType] = useState("cv");
   const [file, setFile] = useState(null);
   const [githubUrl, setGithubUrl] = useState("");
@@ -315,9 +397,13 @@ function AnalyzeTab({ token }) {
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const fileInputRef = useRef(null);
+  const analyzeStateKey = useMemo(
+    () => scopedStateKey(ANALYZE_STATE_NAMESPACE, storageScope),
+    [storageScope],
+  );
 
   useEffect(() => {
-    const saved = loadClientState(ANALYZE_STATE_KEY, {});
+    const saved = loadClientState(analyzeStateKey, {});
     setSourceType(saved.sourceType || "cv");
     setGithubUrl(saved.githubUrl || "");
     setJobDescription(saved.jobDescription || "");
@@ -326,10 +412,10 @@ function AnalyzeTab({ token }) {
     setResult(saved.result || null);
     setSaveTitle(saved.saveTitle || "AI Optimized Resume");
     setSaveDone(Boolean(saved.saveDone));
-  }, []);
+  }, [analyzeStateKey]);
 
   useEffect(() => {
-    saveClientState(ANALYZE_STATE_KEY, {
+    saveClientState(analyzeStateKey, {
       sourceType,
       githubUrl,
       jobDescription,
@@ -339,7 +425,7 @@ function AnalyzeTab({ token }) {
       saveTitle,
       saveDone,
     });
-  }, [sourceType, githubUrl, jobDescription, jobId, status, result, saveTitle, saveDone]);
+  }, [analyzeStateKey, sourceType, githubUrl, jobDescription, jobId, status, result, saveTitle, saveDone]);
 
   useEffect(() => {
     if (!jobId) {
@@ -593,7 +679,7 @@ function AnalyzeTab({ token }) {
   );
 }
 
-function BuilderTab({ token }) {
+function BuilderTab({ token, storageScope }) {
   const [title, setTitle] = useState("My Professional Resume");
   const [fullName, setFullName] = useState("");
   const [headline, setHeadline] = useState("");
@@ -612,9 +698,13 @@ function BuilderTab({ token }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
+  const builderStateKey = useMemo(
+    () => scopedStateKey(BUILDER_STATE_NAMESPACE, storageScope),
+    [storageScope],
+  );
 
   useEffect(() => {
-    const saved = loadClientState(BUILDER_STATE_KEY, {});
+    const saved = loadClientState(builderStateKey, {});
     setTitle(saved.title || "My Professional Resume");
     setFullName(saved.fullName || "");
     setHeadline(saved.headline || "");
@@ -630,10 +720,10 @@ function BuilderTab({ token }) {
     setEducation(saved.education || "");
     setProjects(saved.projects || "");
     setSavedResumeId(saved.savedResumeId || null);
-  }, []);
+  }, [builderStateKey]);
 
   useEffect(() => {
-    saveClientState(BUILDER_STATE_KEY, {
+    saveClientState(builderStateKey, {
       title,
       fullName,
       headline,
@@ -651,6 +741,7 @@ function BuilderTab({ token }) {
       savedResumeId,
     });
   }, [
+    builderStateKey,
     title,
     fullName,
     headline,
@@ -987,8 +1078,16 @@ export default function DashboardPage() {
     ],
     [],
   );
+  const storageScope = useMemo(
+    () => normalizeStorageScope(me?.username || displayName || "anonymous"),
+    [me?.username, displayName],
+  );
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(LEGACY_ANALYZE_STATE_KEY);
+      window.localStorage.removeItem(LEGACY_BUILDER_STATE_KEY);
+    }
     const access = getAccessToken();
     const refresh = getRefreshToken();
     const username = getAuthUsername();
@@ -1025,6 +1124,12 @@ export default function DashboardPage() {
 
   function logout() {
     clearAuthTokens();
+    if (typeof window !== "undefined") {
+      clearClientStateByPrefix(`${ANALYZE_STATE_NAMESPACE}::`);
+      clearClientStateByPrefix(`${BUILDER_STATE_NAMESPACE}::`);
+      window.localStorage.removeItem(LEGACY_ANALYZE_STATE_KEY);
+      window.localStorage.removeItem(LEGACY_BUILDER_STATE_KEY);
+    }
     setToken("");
     setRefreshToken("");
     setMe(null);
@@ -1075,10 +1180,10 @@ export default function DashboardPage() {
         </aside>
 
         <section hidden={tab !== "analyze"}>
-          <AnalyzeTab token={token} />
+          <AnalyzeTab token={token} storageScope={storageScope} />
         </section>
         <section hidden={tab !== "builder"}>
-          <BuilderTab token={token} />
+          <BuilderTab token={token} storageScope={storageScope} />
         </section>
         <section hidden={tab !== "saved"}>
           <SavedTab token={token} />
