@@ -52,7 +52,11 @@ Users can upload a CV, get ATS-style analysis, rewrite suggestions, and keyword 
 ## Contributing
 - See `CONTRIBUTING.md` for branch, commit, and PR standards.
 
-## Zero-to-Run (From Scratch, Windows CMD)
+## Live URLs
+- Backend admin: `https://backend-web-production-f301.up.railway.app/admin/auth/user/`
+- Frontend: `https://shamshods-cv-analyzer.up.railway.app/`
+
+## Docker Run Guide (Windows CMD)
 
 1. Open Docker Desktop first (wait until engine is running).
 
@@ -102,93 +106,12 @@ docker compose ps
 9. Open:
 - Frontend: `http://localhost:3000`
 - API health: `http://localhost:8000/api/health`
+- Backend admin: `http://localhost:8000/admin`
 
 10. Stop when needed:
 
 ```cmd
 docker compose down
-```
-
-## Step-by-step run guide (Docker, Windows CMD)
-
-1. Open `cmd` and go to the project folder:
-
-```cmd
-cd /d D:\SaaS\CV_analyzer
-```
-
-2. Create `.env` from `.env.example` (first time only):
-
-```cmd
-copy .env.example .env
-```
-
-3. Edit `.env` values (required):
-
-```env
-DJANGO_SECRET_KEY=your-long-random-secret
-POSTGRES_DB=cv_analyzer
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres
-DATABASE_URL=postgresql://postgres:postgres@db:5432/cv_analyzer
-REDIS_URL=redis://redis:6379/0
-CELERY_BROKER_URL=redis://redis:6379/1
-CELERY_RESULT_BACKEND=redis://redis:6379/2
-NEXT_PUBLIC_API_BASE=http://localhost:8000
-GEMINI_API_KEY=your-gemini-api-key
-```
-
-4. Start all services:
-
-```cmd
-docker compose up -d --build
-```
-
-5. Run database migrations:
-
-```cmd
-docker compose exec web python manage.py makemigrations
-docker compose exec web python manage.py migrate
-```
-
-6. Verify containers are running:
-
-```cmd
-docker compose ps
-```
-
-7. Open the app:
-- Frontend: http://localhost:3000
-- Backend admin: http://localhost:8000/admin
-
-## Daily usage commands (CMD)
-
-Start existing containers:
-```cmd
-docker compose up -d
-```
-
-Stop containers:
-```cmd
-docker compose down
-```
-
-Restart one service:
-```cmd
-docker compose restart web
-docker compose restart worker
-```
-
-Watch logs:
-```cmd
-docker compose logs --tail=200 web
-docker compose logs --tail=200 worker
-docker compose logs --tail=200 frontend
-```
-
-Rebuild after code/dependency changes:
-```cmd
-docker compose up -d --build
 ```
 
 ## API
