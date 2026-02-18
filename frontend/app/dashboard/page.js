@@ -7,7 +7,9 @@ import {
   apiFetch,
   clearAuthTokens,
   getAccessToken,
+  getAuthUsername,
   getRefreshToken,
+  setAuthUsername,
   setAuthTokens,
 } from "@/lib/api";
 
@@ -66,12 +68,65 @@ function ListBlock({ title, items }) {
   );
 }
 
+function DistributionChart({ rows }) {
+  const maxValue = Math.max(...rows.map((row) => row.value), 1);
+  return (
+    <article className="chart-card">
+      <h4>Feedback Distribution</h4>
+      <div className="chart-rows">
+        {rows.map((row) => (
+          <div key={row.label} className="chart-row">
+            <div className="chart-row-head">
+              <span>{row.label}</span>
+              <strong>{row.value}</strong>
+            </div>
+            <div className="chart-track">
+              <div
+                className="chart-fill"
+                style={{
+                  width: `${Math.max(8, Math.round((row.value / maxValue) * 100))}%`,
+                  background: row.color,
+                }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </article>
+  );
+}
+
+function CoverageChart({ coverage, strengths, missing }) {
+  return (
+    <article className="chart-card">
+      <h4>Keyword Coverage</h4>
+      <div className="coverage-value">{coverage}%</div>
+      <div className="coverage-track">
+        <div className="coverage-fill" style={{ width: `${Math.max(0, Math.min(100, coverage))}%` }} />
+      </div>
+      <p className="muted" style={{ margin: "8px 0 0" }}>
+        Matched signals: {strengths} | Missing signals: {missing}
+      </p>
+    </article>
+  );
+}
+
 function ScorePanel({ result }) {
   const score = Number(result?.ats_score || 0);
   const strengths = getStringList(result?.strengths);
   const missingKeywords = getStringList(result?.missing_keywords);
   const weaknesses = getStringList(result?.weaknesses);
   const features = getStringList(result?.feature_highlights);
+  const improvedBullets = getStringList(result?.improved_bullets);
+  const nextActions = getStringList(result?.next_actions);
+  const totalKeywordSignals = strengths.length + missingKeywords.length;
+  const keywordCoverage = totalKeywordSignals > 0 ? Math.round((strengths.length / totalKeywordSignals) * 100) : 0;
+  const distributionRows = [
+    { label: "Strengths", value: strengths.length, color: "var(--ok)" },
+    { label: "Missing Keywords", value: missingKeywords.length, color: "var(--warn)" },
+    { label: "Weaknesses", value: weaknesses.length, color: "var(--danger)" },
+    { label: "Next Actions", value: nextActions.length || improvedBullets.length, color: "var(--primary)" },
+  ];
 
   return (
     <section className="card panel form-grid">
@@ -98,6 +153,10 @@ function ScorePanel({ result }) {
             <p>{weaknesses.length}</p>
           </article>
         </div>
+      </div>
+      <div className="chart-grid">
+        <DistributionChart rows={distributionRows} />
+        <CoverageChart coverage={keywordCoverage} strengths={strengths.length} missing={missingKeywords.length} />
       </div>
       <div className="feedback-grid">
         <ListBlock title="Top Strengths" items={strengths} />
@@ -932,9 +991,11 @@ export default function DashboardPage() {
   useEffect(() => {
     const access = getAccessToken();
     const refresh = getRefreshToken();
+    const username = getAuthUsername();
     if (access) {
       setToken(access);
       setRefreshToken(refresh);
+      setDisplayName(username);
     }
   }, []);
 
@@ -946,6 +1007,8 @@ export default function DashboardPage() {
       try {
         const data = await apiFetch("/api/auth/me", { method: "GET" }, token);
         setMe(data);
+        setDisplayName(data?.username || "");
+        setAuthUsername(data?.username || "");
       } catch {
         setMe(null);
       }
@@ -957,6 +1020,7 @@ export default function DashboardPage() {
     setToken(access);
     setRefreshToken(refresh || "");
     setDisplayName(username || "");
+    setAuthUsername(username || "");
   }
 
   function logout() {
@@ -975,7 +1039,10 @@ export default function DashboardPage() {
   return (
     <main className="dashboard-app">
       <div className="container dashboard-user-top">
-        <span className="pill">Signed in as @{me?.username || displayName || "user"}</span>
+        <span className="pill dashboard-user-pill-sm">Signed in as @{me?.username || displayName || "user"}</span>
+        <button type="button" className="button ghost dashboard-user-logout-sm" onClick={logout}>
+          Logout
+        </button>
       </div>
       <div className="container dashboard-layout">
         <aside className="card dashboard-sidebar">

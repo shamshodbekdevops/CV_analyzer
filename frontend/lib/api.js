@@ -1,6 +1,15 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE ? "" : "http://localhost:8000";
 const ACCESS_TOKEN_KEY = "access_token";
 const REFRESH_TOKEN_KEY = "refresh_token";
+const AUTH_USERNAME_KEY = "auth_username";
+
+async function safeFetch(url, options) {
+  try {
+    return await fetch(url, options);
+  } catch {
+    throw new Error(`Network error while connecting to API: ${url}`);
+  }
+}
 
 export function setAuthTokens(accessToken, refreshToken = "") {
   if (typeof window === "undefined") {
@@ -32,12 +41,32 @@ export function getRefreshToken() {
   return localStorage.getItem(REFRESH_TOKEN_KEY) || "";
 }
 
+export function setAuthUsername(username) {
+  if (typeof window === "undefined") {
+    return;
+  }
+  const value = String(username || "").trim();
+  if (!value) {
+    localStorage.removeItem(AUTH_USERNAME_KEY);
+    return;
+  }
+  localStorage.setItem(AUTH_USERNAME_KEY, value);
+}
+
+export function getAuthUsername() {
+  if (typeof window === "undefined") {
+    return "";
+  }
+  return localStorage.getItem(AUTH_USERNAME_KEY) || "";
+}
+
 export function clearAuthTokens() {
   if (typeof window === "undefined") {
     return;
   }
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
+  localStorage.removeItem(AUTH_USERNAME_KEY);
 }
 
 export function clearAccessToken() {
@@ -62,7 +91,7 @@ export async function refreshAccessToken() {
     throw new Error("Authentication expired. Please login again.");
   }
 
-  const response = await fetch(`${API_BASE}/api/auth/refresh`, {
+  const response = await safeFetch(`${API_BASE}/api/auth/refresh`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ refresh }),
@@ -87,7 +116,7 @@ export async function apiFetch(path, options = {}, token = "", retried = false) 
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_BASE}${path}`, {
+  const response = await safeFetch(`${API_BASE}${path}`, {
     ...options,
     headers,
   });
@@ -113,7 +142,7 @@ export async function apiDownload(path, token = "", retried = false) {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_BASE}${path}`, {
+  const response = await safeFetch(`${API_BASE}${path}`, {
     method: "GET",
     headers,
   });
