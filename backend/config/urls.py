@@ -7,6 +7,10 @@ from apps.resumes.views import ResumeDetailView, ResumeListCreateView, ResumePdf
 from apps.sharing.views import ShareDetailView
 from config.health import HealthCheckView
 
+admin.site.site_header = "CV Analyzer Admin"
+admin.site.site_title = "CV Analyzer Admin"
+admin.site.index_title = "Platform Control Panel"
+
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/health", HealthCheckView.as_view(), name="health-check"),
