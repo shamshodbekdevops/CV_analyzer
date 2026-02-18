@@ -109,6 +109,35 @@ function ScorePanel({ result }) {
   );
 }
 
+function EyeIcon({ off = false }) {
+  if (off) {
+    return (
+      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+        <path
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M3 3l18 18M10.6 10.6a2 2 0 002.8 2.8M9.9 5.2A10.8 10.8 0 0112 5c5 0 9.3 3.1 11 7-1 2.4-2.9 4.4-5.3 5.6M6.6 6.6C4.7 8 3.2 9.8 2 12c.6 1.4 1.5 2.7 2.6 3.8"
+        />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+      <path
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M2 12c1.7-3.9 6-7 10-7s8.3 3.1 10 7c-1.7 3.9-6 7-10 7S3.7 15.9 2 12zm10 3a3 3 0 100-6 3 3 0 000 6z"
+      />
+    </svg>
+  );
+}
+
 function AuthPanel({ onAuth }) {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -188,7 +217,7 @@ function AuthPanel({ onAuth }) {
               aria-label={showPassword ? "Hide password" : "Show password"}
               title={showPassword ? "Hide password" : "Show password"}
             >
-              {showPassword ? "🙈" : "👁"}
+              <EyeIcon off={showPassword} />
             </button>
           </div>
         </div>

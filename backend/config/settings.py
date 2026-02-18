@@ -8,9 +8,48 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
+def _normalize_origin(value: str) -> str:
+    raw = (value or "").strip().rstrip("/")
+    if not raw:
+        return ""
+    if "://" not in raw:
+        # Allow host-only input and default to https for deployment safety.
+        raw = f"https://{raw}"
+    parsed = urllib.parse.urlparse(raw)
+    if not parsed.scheme or not parsed.netloc:
+        return ""
+    return f"{parsed.scheme}://{parsed.netloc}"
+
+
+def _env_origins(name: str) -> list[str]:
+    seen = set()
+    origins = []
+    for value in os.getenv(name, "").split(","):
+        normalized = _normalize_origin(value)
+        if normalized and normalized not in seen:
+            seen.add(normalized)
+            origins.append(normalized)
+    return origins
+
+
+def _env_hosts(name: str, default: str = "*") -> list[str]:
+    raw_values = os.getenv(name, default).split(",")
+    hosts = []
+    for value in raw_values:
+        entry = value.strip().rstrip("/")
+        if not entry:
+            continue
+        if "://" in entry:
+            parsed = urllib.parse.urlparse(entry)
+            if parsed.netloc:
+                entry = parsed.netloc
+        hosts.append(entry)
+    return hosts
+
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "unsafe-dev-key")
 DEBUG = os.getenv("DJANGO_DEBUG", "false").lower() == "true"
-ALLOWED_HOSTS = [h.strip() for h in os.getenv("DJANGO_ALLOWED_HOSTS", "*").split(",") if h.strip()]
+ALLOWED_HOSTS = _env_hosts("DJANGO_ALLOWED_HOSTS", "*")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -117,9 +156,16 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 20,
 }
 
-CORS_ALLOW_ALL_ORIGINS = DEBUG
-CORS_ALLOWED_ORIGINS = [o.strip() for o in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if o.strip()]
-CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",") if o.strip()]
+CORS_ALLOWED_ORIGINS = _env_origins("CORS_ALLOWED_ORIGINS")
+CSRF_TRUSTED_ORIGINS = _env_origins("CSRF_TRUSTED_ORIGINS")
+CORS_ALLOWED_ORIGIN_REGEXES = [v.strip() for v in os.getenv("CORS_ALLOWED_ORIGIN_REGEXES", "").split(",") if v.strip()]
+
+cors_allow_all_env = os.getenv("CORS_ALLOW_ALL_ORIGINS")
+if cors_allow_all_env is None:
+    # Fail-open only when explicit origins are missing to avoid blocking auth on deployment config mistakes.
+    CORS_ALLOW_ALL_ORIGINS = DEBUG or (not CORS_ALLOWED_ORIGINS and not CORS_ALLOWED_ORIGIN_REGEXES)
+else:
+    CORS_ALLOW_ALL_ORIGINS = cors_allow_all_env.lower() == "true"
 
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
