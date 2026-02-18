@@ -113,6 +113,7 @@ function AuthPanel({ onAuth }) {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
@@ -146,10 +147,10 @@ function AuthPanel({ onAuth }) {
       const data = await apiFetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username, identifier: username, password }),
       });
       setAuthTokens(data.access, data.refresh);
-      onAuth(data.access, data.refresh);
+      onAuth(data.access, data.refresh, data.username || username);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -168,8 +169,8 @@ function AuthPanel({ onAuth }) {
 
         <div className="form-row">
           <div>
-            <label>Username</label>
-            <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="shamshodbekdevops" />
+            <label>Username or Email</label>
+            <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="shamshodbekdevops or you@example.com" />
           </div>
           <div>
             <label>Email (register only)</label>
@@ -178,7 +179,18 @@ function AuthPanel({ onAuth }) {
         </div>
         <div>
           <label>Password</label>
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <div className="password-input-wrap">
+            <input type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} />
+            <button
+              type="button"
+              className="password-toggle"
+              onClick={() => setShowPassword((prev) => !prev)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              title={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? "🙈" : "👁"}
+            </button>
+          </div>
         </div>
         <div className="stack">
           <button className="button" onClick={() => login(false)} disabled={loading || !username || !password}>
@@ -876,6 +888,7 @@ export default function DashboardPage() {
   const [token, setToken] = useState("");
   const [refreshToken, setRefreshToken] = useState("");
   const [me, setMe] = useState(null);
+  const [displayName, setDisplayName] = useState("");
   const [tab, setTab] = useState("analyze");
 
   const tabs = useMemo(
@@ -911,9 +924,10 @@ export default function DashboardPage() {
     loadMe();
   }, [token]);
 
-  function handleAuth(access, refresh) {
+  function handleAuth(access, refresh, username = "") {
     setToken(access);
     setRefreshToken(refresh || "");
+    setDisplayName(username || "");
   }
 
   function logout() {
@@ -921,6 +935,7 @@ export default function DashboardPage() {
     setToken("");
     setRefreshToken("");
     setMe(null);
+    setDisplayName("");
     setTab("analyze");
   }
 
@@ -930,6 +945,9 @@ export default function DashboardPage() {
 
   return (
     <main className="dashboard-app">
+      <div className="container dashboard-user-top">
+        <span className="pill">Signed in as @{me?.username || displayName || "user"}</span>
+      </div>
       <div className="container dashboard-layout">
         <aside className="card dashboard-sidebar">
           <div>

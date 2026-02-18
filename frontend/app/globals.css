@@ -451,6 +451,32 @@ a {
   padding: 26px;
 }
 
+.password-input-wrap {
+  position: relative;
+}
+
+.password-input-wrap input {
+  padding-right: 46px;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 8px;
+  height: 30px;
+  min-width: 30px;
+  cursor: pointer;
+}
+
+.dashboard-user-top {
+  margin-bottom: 10px;
+}
+
 .dashboard-app {
   padding: 24px 0 54px;
 }
