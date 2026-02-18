@@ -6,7 +6,6 @@ from django.conf import settings
 from apps.analysis.gemini_client import gemini_client
 from apps.analysis.github_scraper import GitHubScrapeError, github_scraper
 from apps.analysis.models import AnalyzeJob, AnalyzeUsage
-from apps.analysis.parser import extract_text_from_file
 from apps.billing.models import Subscription
 from core.cache_utils import build_cache_key, set_json_cache
 
@@ -30,10 +29,10 @@ def process_analyze_job(self, job_id: str, source_type: str, source_payload, job
                 "scraped": scraped,
             }
         else:
-            source_text = extract_text_from_file(str(source_payload))
+            source_text = str(source_payload)
             source_meta = {
                 "source": "cv",
-                "file_path": str(source_payload),
+                "input": job.source_input,
             }
 
         ai_result = gemini_client.analyze_resume(source_text, job_description, source_kind=source_type)

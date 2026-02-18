@@ -4,11 +4,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.analysis.models import AnalyzeJob
+from apps.analysis.parser import extract_text_from_upload
 from apps.analysis.serializers import AnalyzeCreateSerializer, AnalyzeJobStatusSerializer
 from apps.analysis.tasks import process_analyze_job
 from apps.billing.models import Subscription
 from core.cache_utils import build_cache_key, get_json_cache
-from core.storage import storage_service
 
 
 class AnalyzeCreateView(APIView):
@@ -33,10 +33,8 @@ class AnalyzeCreateView(APIView):
             if upload.size > max_size:
                 return Response({"detail": "File too large."}, status=status.HTTP_400_BAD_REQUEST)
 
-            stored = storage_service.save_temp_upload(upload)
-            source_payload = stored.path
+            source_payload = extract_text_from_upload(upload)
             source_input = upload.name
-            source_file_key = stored.key
         else:
             github_url = serializer.validated_data["github_url"].strip()
             source_payload = github_url

@@ -206,3 +206,66 @@ docker compose up -d --build
 - `POST /api/resumes/{id}/share`
 - `GET /api/resumes/{id}/export`
 - `GET /api/admin/metrics`
+
+## Railway Deployment (Full Stack)
+
+This project should be deployed as separate Railway services from the same repo:
+
+1. `backend-web` (Django API + migrations + collectstatic + gunicorn)
+2. `backend-worker` (Celery worker)
+3. `frontend` (Next.js production)
+4. `postgres` (Railway PostgreSQL service)
+5. `redis` (Railway Redis service)
+
+### Service setup (monorepo)
+
+For each custom service, use this repo and set the root directory:
+
+- `backend-web`: root dir `backend`, Dockerfile `Dockerfile`, start command `/app/start-web.sh`
+- `backend-worker`: root dir `backend`, Dockerfile `Dockerfile`, start command `/app/start-worker.sh`
+- `frontend`: root dir `frontend`, Dockerfile `Dockerfile`
+
+Attach managed services:
+- PostgreSQL service
+- Redis service
+
+### Required environment variable names
+
+Set these variable names in Railway service variables (no secrets in git):
+
+- Backend web + worker:
+  - `DJANGO_SECRET_KEY`
+  - `DJANGO_DEBUG`
+  - `DJANGO_ALLOWED_HOSTS`
+  - `DATABASE_URL`
+  - `REDIS_URL`
+  - `CELERY_BROKER_URL`
+  - `CELERY_RESULT_BACKEND`
+  - `GEMINI_API_KEY`
+  - `GEMINI_MODEL`
+  - `GITHUB_TOKEN`
+  - `CORS_ALLOWED_ORIGINS`
+  - `CSRF_TRUSTED_ORIGINS`
+  - `ANALYZE_RESULT_TTL_SECONDS`
+  - `MAX_UPLOAD_SIZE_MB`
+  - `FREE_PLAN_ANALYSIS_LIMIT`
+
+- Frontend:
+  - `NEXT_PUBLIC_API_BASE`
+
+### Domain and networking
+
+- Assign public domain to `frontend` service.
+- Assign public domain to `backend-web` service (for API).
+- Add both backend and frontend domains to:
+  - `DJANGO_ALLOWED_HOSTS`
+  - `CORS_ALLOWED_ORIGINS`
+  - `CSRF_TRUSTED_ORIGINS` (backend domain)
+- Set `NEXT_PUBLIC_API_BASE` to backend public URL.
+
+### Health checks
+
+- Backend health endpoint: `GET /api/health`
+- Verify queue processing:
+  - create analyze job from frontend
+  - confirm worker logs show task execution
