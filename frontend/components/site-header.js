@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { clearAuthTokens, getAuthUsername } from "@/lib/api";
+import { AUTH_STATE_EVENT, clearAuthTokens, getAuthUsername } from "@/lib/api";
 
 const THEME_KEY = "cv_analyzer_theme";
 
@@ -36,9 +36,11 @@ export default function SiteHeader() {
     }
     window.addEventListener("storage", syncUser);
     window.addEventListener("focus", syncUser);
+    window.addEventListener(AUTH_STATE_EVENT, syncUser);
     return () => {
       window.removeEventListener("storage", syncUser);
       window.removeEventListener("focus", syncUser);
+      window.removeEventListener(AUTH_STATE_EVENT, syncUser);
     };
   }, []);
 

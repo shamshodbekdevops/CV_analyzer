@@ -2,6 +2,14 @@ const API_PROXY_BASE = "/api/proxy";
 const ACCESS_TOKEN_KEY = "access_token";
 const REFRESH_TOKEN_KEY = "refresh_token";
 const AUTH_USERNAME_KEY = "auth_username";
+export const AUTH_STATE_EVENT = "cv-analyzer-auth-changed";
+
+function emitAuthStateChange() {
+  if (typeof window === "undefined") {
+    return;
+  }
+  window.dispatchEvent(new CustomEvent(AUTH_STATE_EVENT));
+}
 
 function normalizeApiPath(path) {
   const rawPath = String(path || "");
@@ -33,11 +41,17 @@ export function setAuthTokens(accessToken, refreshToken = "") {
   if (typeof window === "undefined") {
     return;
   }
+  let changed = false;
   if (accessToken) {
     localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+    changed = true;
   }
   if (refreshToken) {
     localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+    changed = true;
+  }
+  if (changed) {
+    emitAuthStateChange();
   }
 }
 
@@ -66,9 +80,11 @@ export function setAuthUsername(username) {
   const value = String(username || "").trim();
   if (!value) {
     localStorage.removeItem(AUTH_USERNAME_KEY);
+    emitAuthStateChange();
     return;
   }
   localStorage.setItem(AUTH_USERNAME_KEY, value);
+  emitAuthStateChange();
 }
 
 export function getAuthUsername() {
@@ -85,6 +101,7 @@ export function clearAuthTokens() {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
   localStorage.removeItem(AUTH_USERNAME_KEY);
+  emitAuthStateChange();
 }
 
 export function clearAccessToken() {
