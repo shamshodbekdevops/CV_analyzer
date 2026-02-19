@@ -54,7 +54,6 @@ export default function SiteHeader() {
   function logout() {
     clearAuthTokens();
     setAuthUser("");
-    router.push("/dashboard");
     router.refresh();
   }
 

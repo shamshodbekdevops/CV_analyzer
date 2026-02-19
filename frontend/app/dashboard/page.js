@@ -3,12 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
+  AUTH_STATE_EVENT,
   apiDownload,
   apiFetch,
-  clearAuthTokens,
   getAccessToken,
   getAuthUsername,
-  getRefreshToken,
   setAuthUsername,
   setAuthTokens,
 } from "@/lib/api";
@@ -60,20 +59,6 @@ function normalizeStorageScope(scope) {
 
 function scopedStateKey(namespace, scope) {
   return `${namespace}::${normalizeStorageScope(scope)}`;
-}
-
-function clearClientStateByPrefix(prefix) {
-  if (typeof window === "undefined") {
-    return;
-  }
-  const keys = [];
-  for (let index = 0; index < window.localStorage.length; index += 1) {
-    const key = window.localStorage.key(index);
-    if (key && key.startsWith(prefix)) {
-      keys.push(key);
-    }
-  }
-  keys.forEach((key) => window.localStorage.removeItem(key));
 }
 
 function getStringList(value) {
@@ -1065,7 +1050,6 @@ function SavedTab({ token }) {
 
 export default function DashboardPage() {
   const [token, setToken] = useState("");
-  const [refreshToken, setRefreshToken] = useState("");
   const [me, setMe] = useState(null);
   const [displayName, setDisplayName] = useState("");
   const [tab, setTab] = useState("analyze");
@@ -1084,18 +1068,32 @@ export default function DashboardPage() {
   );
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      window.localStorage.removeItem(LEGACY_ANALYZE_STATE_KEY);
-      window.localStorage.removeItem(LEGACY_BUILDER_STATE_KEY);
-    }
-    const access = getAccessToken();
-    const refresh = getRefreshToken();
-    const username = getAuthUsername();
-    if (access) {
+    function syncAuth() {
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem(LEGACY_ANALYZE_STATE_KEY);
+        window.localStorage.removeItem(LEGACY_BUILDER_STATE_KEY);
+      }
+      const access = getAccessToken();
+      const username = getAuthUsername();
+      if (!access) {
+        setToken("");
+        setMe(null);
+        setDisplayName("");
+        setTab("analyze");
+        return;
+      }
       setToken(access);
-      setRefreshToken(refresh);
       setDisplayName(username);
     }
+    syncAuth();
+    window.addEventListener("storage", syncAuth);
+    window.addEventListener("focus", syncAuth);
+    window.addEventListener(AUTH_STATE_EVENT, syncAuth);
+    return () => {
+      window.removeEventListener("storage", syncAuth);
+      window.removeEventListener("focus", syncAuth);
+      window.removeEventListener(AUTH_STATE_EVENT, syncAuth);
+    };
   }, []);
 
   useEffect(() => {
@@ -1117,24 +1115,9 @@ export default function DashboardPage() {
 
   function handleAuth(access, refresh, username = "") {
     setToken(access);
-    setRefreshToken(refresh || "");
     setDisplayName(username || "");
+    setAuthTokens(access, refresh || "");
     setAuthUsername(username || "");
-  }
-
-  function logout() {
-    clearAuthTokens();
-    if (typeof window !== "undefined") {
-      clearClientStateByPrefix(`${ANALYZE_STATE_NAMESPACE}::`);
-      clearClientStateByPrefix(`${BUILDER_STATE_NAMESPACE}::`);
-      window.localStorage.removeItem(LEGACY_ANALYZE_STATE_KEY);
-      window.localStorage.removeItem(LEGACY_BUILDER_STATE_KEY);
-    }
-    setToken("");
-    setRefreshToken("");
-    setMe(null);
-    setDisplayName("");
-    setTab("analyze");
   }
 
   if (!token) {
@@ -1143,16 +1126,10 @@ export default function DashboardPage() {
 
   return (
     <main className="dashboard-app">
-      <div className="container dashboard-user-top">
-        <span className="pill dashboard-user-pill-sm">Signed in as @{me?.username || displayName || "user"}</span>
-        <button type="button" className="button ghost dashboard-user-logout-sm" onClick={logout}>
-          Logout
-        </button>
-      </div>
       <div className="container dashboard-layout">
         <aside className="card dashboard-sidebar">
           <div>
-            <p className="pill">{me?.username ? `@${me.username}` : "Workspace"}</p>
+            <p className="pill">Workspace</p>
             <h2 className="sidebar-title" style={{ marginTop: 10 }}>
               CV Intelligence
             </h2>
@@ -1168,15 +1145,6 @@ export default function DashboardPage() {
               </button>
             ))}
           </nav>
-
-          <button className="button ghost" onClick={logout}>
-            Logout
-          </button>
-          {refreshToken ? (
-            <p className="muted" style={{ margin: 0, fontSize: "0.76rem" }}>
-              Session token: active
-            </p>
-          ) : null}
         </aside>
 
         <section hidden={tab !== "analyze"}>
