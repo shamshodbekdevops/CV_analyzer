@@ -73,6 +73,16 @@ export default function SiteHeader() {
         </nav>
         <div className="header-actions">
           {authUser ? <span className="pill header-user-pill">@{authUser}</span> : null}
+          {!authUser ? (
+            <>
+              <Link href="/dashboard" className="button ghost header-auth-btn">
+                Login
+              </Link>
+              <Link href="/dashboard" className="button secondary header-auth-btn">
+                Register
+              </Link>
+            </>
+          ) : null}
           {authUser ? (
             <button type="button" className="button ghost header-logout-btn" onClick={logout}>
               Logout

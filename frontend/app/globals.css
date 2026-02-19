@@ -183,6 +183,11 @@ a {
   gap: 8px;
 }
 
+.header-auth-btn {
+  padding: 8px 11px;
+  font-size: 0.82rem;
+}
+
 .header-user-pill {
   font-size: 0.72rem;
   padding: 5px 9px;
